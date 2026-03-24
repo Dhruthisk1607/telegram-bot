@@ -1,0 +1,44 @@
+import os
+from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.constants import ChatMemberStatus
+
+# 1. Load your credentials from the .env file
+load_dotenv()
+TOKEN = os.getenv("Token")
+# This version won't crash even if the ID is missing
+raw_id = os.getenv("GROUP_ID")
+
+if raw_id is None:
+    print("❌ Error: GROUP_ID not found in .env file!")
+    # Hardcode it temporarily to test if you're in a hurry:
+    # GROUP_ID = -5222183203 
+else:
+    GROUP_ID = int(raw_id)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    try:
+        # 2. Ask Telegram if this user is in your project group
+        member = await context.bot.get_chat_member(chat_id=GROUP_ID, user_id=user_id)
+        
+        # 3. Check their status
+        allowed_statuses = [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
+        
+        if member.status in allowed_statuses:
+            await update.message.reply_text("✅ Access Granted! You are a member of the project group.")
+        else:
+            await update.message.reply_text("❌ Access Denied. Please join the project group first.")
+            
+    except Exception as e:
+        # This usually happens if the bot isn't an admin in the group
+        await update.message.reply_text("⚠️ Error: I can't check membership. Am I an admin in the group?")
+
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    
+    print("avi bot is running...")
+    app.run_polling()
